@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Discord Darts League Manager</title>
+    <title>Darts League Manager</title>
     <style>
         * {
             margin: 0;
@@ -13,7 +13,7 @@
 
         body {
             font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #333333 100%);
+            background: linear-gradient(135deg, #1a237e 0%, #3949ab 50%, #0d47a1 100%);
             min-height: 100vh;
             color: #333;
         }
@@ -59,7 +59,7 @@
 
         .nav-tabs {
             display: flex;
-            background: rgba(0, 0, 0, 0.4);
+            background: rgba(26, 35, 126, 0.3);
             border-radius: 10px;
             margin-bottom: 30px;
             overflow: hidden;
@@ -80,7 +80,7 @@
 
         .nav-tab.active {
             background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-            color: #000000;
+            color: #1a237e;
             font-weight: bold;
             backdrop-filter: blur(20px);
         }
@@ -136,7 +136,7 @@
 
         .btn {
             background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-            color: #000000;
+            color: #1a237e;
             border: none;
             padding: 12px 24px;
             border-radius: 8px;
@@ -260,13 +260,13 @@
         }
 
         .stat-card {
-            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+            background: linear-gradient(135deg, #1a237e 0%, #3949ab 100%);
             color: white;
             padding: 20px;
             border-radius: 10px;
             text-align: center;
             border: 2px solid rgba(255, 215, 0, 0.3);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 8px 25px rgba(26, 35, 126, 0.3);
         }
 
         .stat-number {
@@ -675,4 +675,212 @@
 
             // Clear existing leagues and fixtures
             leagues = [];
-            fixtures
+            fixtures = [];
+
+            // Create leagues
+            let leagueNumber = 1;
+            for (let i = 0; i < players.length; i += playersPerLeague) {
+                const leaguePlayers = players.slice(i, i + playersPerLeague);
+                
+                if (leaguePlayers.length >= Math.max(4, Math.floor(playersPerLeague * 0.7))) {
+                    const league = {
+                        id: leagueNumber,
+                        name: `League ${leagueNumber}`,
+                        players: leaguePlayers,
+                        fixtures: generateFixtures(leaguePlayers)
+                    };
+                    leagues.push(league);
+                    leagueNumber++;
+                }
+            }
+
+            displayLeagues();
+            displayFixtures();
+        }
+
+        // Generate fixtures for a league (round-robin with proper weekly scheduling)
+        function generateFixtures(leaguePlayers) {
+            const numPlayers = leaguePlayers.length;
+            const fixtures = [];
+            
+            // If odd number of players, add a "bye" placeholder
+            const players = [...leaguePlayers];
+            if (numPlayers % 2 === 1) {
+                players.push({ name: "BYE", id: "bye", average: 0 });
+            }
+            
+            const totalPlayers = players.length;
+            const totalRounds = totalPlayers - 1;
+            const matchesPerRound = totalPlayers / 2;
+            
+            // Generate first half of season (each player plays each other once)
+            for (let round = 0; round < totalRounds; round++) {
+                const roundMatches = [];
+                
+                for (let match = 0; match < matchesPerRound; match++) {
+                    let home, away;
+                    
+                    if (match === 0) {
+                        // First player stays fixed, others rotate
+                        home = players[0];
+                        away = players[totalPlayers - 1 - round];
+                    } else {
+                        const homeIndex = (match + round) % (totalPlayers - 1);
+                        const awayIndex = (totalPlayers - 1 - match - round + totalPlayers - 1) % (totalPlayers - 1);
+                        
+                        home = players[homeIndex + 1];
+                        away = players[awayIndex + 1];
+                    }
+                    
+                    // Skip matches involving BYE
+                    if (home.name !== "BYE" && away.name !== "BYE") {
+                        roundMatches.push({
+                            home: home,
+                            away: away,
+                            week: round + 1
+                        });
+                    }
+                }
+                
+                fixtures.push(...roundMatches);
+            }
+            
+            // Generate second half of season (reverse home/away)
+            const secondHalf = fixtures.map(match => ({
+                home: match.away,
+                away: match.home,
+                week: match.week + totalRounds
+            }));
+            
+            return [...fixtures, ...secondHalf];
+        }
+
+        // Display leagues
+        function displayLeagues() {
+            const container = document.getElementById('leaguesContainer');
+            
+            if (leagues.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No leagues generated yet.</p>';
+                return;
+            }
+
+            container.innerHTML = leagues.map(league => `
+                <div class="league-container">
+                    <div class="league-header">
+                        <h3>${league.name}</h3>
+                        <span style="color: #666;">${league.players.length} players</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                        ${league.players.map((player, index) => `
+                            <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border-left: 4px solid #ffd700;">
+                                <div style="font-weight: bold;">${index + 1}. ${player.name}</div>
+                                <div style="color: #ffd700; font-size: 1.1rem; font-weight: bold;">Avg: ${player.average}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Display fixtures
+        function displayFixtures() {
+            const container = document.getElementById('fixturesContainer');
+            
+            if (leagues.length === 0) {
+                container.innerHTML = '<div class="alert alert-warning"><strong>No fixtures generated yet.</strong> Please generate leagues first in the "Generate Leagues" tab.</div>';
+                return;
+            }
+
+            container.innerHTML = leagues.map(league => {
+                // Group fixtures by week
+                const fixturesByWeek = {};
+                league.fixtures.forEach(fixture => {
+                    if (!fixturesByWeek[fixture.week]) {
+                        fixturesByWeek[fixture.week] = [];
+                    }
+                    fixturesByWeek[fixture.week].push(fixture);
+                });
+
+                const weeksHtml = Object.keys(fixturesByWeek).map(week => `
+                    <div class="fixture-week">
+                        <h4>Week ${week}</h4>
+                        ${fixturesByWeek[week].map(match => `
+                            <div class="fixture-match">
+                                <span class="home-player">${match.home.name}</span>
+                                <span class="vs">vs</span>
+                                <span class="away-player">${match.away.name}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="league-container">
+                        <div class="league-header">
+                            <h3>${league.name} Fixtures</h3>
+                            <span style="color: #666;">${league.fixtures.length} total matches</span>
+                        </div>
+                        <div class="fixtures-grid">
+                            ${weeksHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Export functions
+        function exportPlayers(format) {
+            if (players.length === 0) {
+                alert('No players to export!');
+                return;
+            }
+
+            let content = '';
+            let filename = '';
+            let mimeType = '';
+
+            if (format === 'csv') {
+                content = 'Name,Email,Average,Registered At\n' + 
+                    players.map(p => `"${p.name}","${p.email}",${p.average},"${p.registeredAt}"`).join('\n');
+                filename = 'darts_players.csv';
+                mimeType = 'text/csv';
+            } else if (format === 'json') {
+                content = JSON.stringify(players, null, 2);
+                filename = 'darts_players.json';
+                mimeType = 'application/json';
+            }
+
+            downloadFile(content, filename, mimeType);
+        }
+
+        function exportLeagues() {
+            if (leagues.length === 0) {
+                alert('No leagues to export! Please generate leagues first.');
+                return;
+            }
+
+            const exportData = {
+                leagues: leagues,
+                generatedAt: new Date().toISOString(),
+                totalPlayers: players.length,
+                totalLeagues: leagues.length
+            };
+
+            const content = JSON.stringify(exportData, null, 2);
+            downloadFile(content, 'darts_leagues_and_fixtures.json', 'application/json');
+        }
+
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
