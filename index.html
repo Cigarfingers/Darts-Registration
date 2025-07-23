@@ -292,11 +292,37 @@
             <p>Sign up players, create leagues, and generate fixtures</p>
         </div>
 
-        <div class="nav-tabs">
+        <div class="nav-tabs" id="navTabs">
             <button class="nav-tab active" onclick="showTab('signup')">Player Signup</button>
-            <button class="nav-tab" onclick="showTab('players')">Manage Players</button>
-            <button class="nav-tab" onclick="showTab('leagues')">Generate Leagues</button>
-            <button class="nav-tab" onclick="showTab('fixtures')">Fixtures</button>
+            <button class="nav-tab" id="adminTab" onclick="showTab('admin')" style="display: none;">Admin Login</button>
+            <button class="nav-tab" id="playersTab" onclick="showTab('players')" style="display: none;">Manage Players</button>
+            <button class="nav-tab" id="leaguesTab" onclick="showTab('leagues')" style="display: none;">Generate Leagues</button>
+            <button class="nav-tab" id="fixturesTab" onclick="showTab('fixtures')" style="display: none;">Fixtures</button>
+        </div>
+
+        <!-- Admin Login Button (visible when not logged in) -->
+        <div id="adminLoginBtn" style="text-align: center; margin-bottom: 20px;">
+            <button class="btn btn-secondary" onclick="showTab('admin')">Admin Access</button>
+        </div>
+
+        <!-- Admin Login Tab -->
+        <div id="admin" class="tab-content">
+            <h2>Admin Login</h2>
+            <p style="margin-bottom: 20px; color: #666;">Please enter the admin password to access league management features.</p>
+            
+            <form id="adminLoginForm">
+                <div class="form-group">
+                    <label for="adminPassword">Admin Password</label>
+                    <input type="password" id="adminPassword" name="adminPassword" required placeholder="Enter admin password">
+                </div>
+                
+                <button type="submit" class="btn">Login</button>
+                <button type="button" class="btn btn-secondary" onclick="showTab('signup')">Back to Signup</button>
+            </form>
+
+            <div id="loginError" class="alert alert-warning" style="display: none;">
+                <strong>Access Denied!</strong> Incorrect password. Please try again.
+            </div>
         </div>
 
         <!-- Player Signup Tab -->
@@ -350,6 +376,7 @@
                         <button class="btn btn-secondary" onclick="exportPlayers('csv')">Export CSV</button>
                         <button class="btn btn-secondary" onclick="exportPlayers('json')">Export JSON</button>
                         <button class="btn btn-danger" onclick="clearAllPlayers()">Clear All</button>
+                        <button class="btn btn-danger" onclick="adminLogout()">Logout</button>
                     </div>
                 </div>
                 <div id="playersList"></div>
@@ -372,6 +399,7 @@
             </div>
 
             <button class="btn" onclick="generateLeagues()">Generate Leagues</button>
+            <button class="btn btn-danger" onclick="adminLogout()" style="float: right;">Logout</button>
 
             <div id="leaguesContainer"></div>
 
@@ -379,12 +407,16 @@
                 <h3>Export League Data</h3>
                 <p>Export your leagues and fixtures for use in external systems</p>
                 <button class="btn btn-secondary" onclick="exportLeagues()">Export All Leagues</button>
+                <button class="btn btn-danger" onclick="adminLogout()">Logout</button>
             </div>
         </div>
 
         <!-- Fixtures Tab -->
         <div id="fixtures" class="tab-content">
-            <h2>League Fixtures</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>League Fixtures</h2>
+                <button class="btn btn-danger" onclick="adminLogout()">Logout</button>
+            </div>
             <p style="margin-bottom: 20px; color: #666;">View all fixtures for each league. Each player plays every other player twice - once at home and once away.</p>
             
             <div id="fixturesContainer">
@@ -400,15 +432,26 @@
         let players = [];
         let leagues = [];
         let fixtures = [];
+        let isAdminLoggedIn = false;
+        
+        // Admin password - you can change this to whatever you want
+        const ADMIN_PASSWORD = "dartsadmin123";
 
         // Load data from memory on page load
         window.onload = function() {
             updatePlayerStats();
             displayPlayers();
+            updateAdminInterface();
         };
 
         // Tab switching
         function showTab(tabName) {
+            // Check if trying to access admin features without login
+            if (['players', 'leagues', 'fixtures'].includes(tabName) && !isAdminLoggedIn) {
+                showTab('admin');
+                return;
+            }
+            
             // Hide all tabs
             const tabs = document.querySelectorAll('.tab-content');
             tabs.forEach(tab => tab.classList.remove('active'));
@@ -419,7 +462,66 @@
             
             // Show selected tab
             document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
+            
+            // Find and activate the corresponding nav tab
+            const targetNavTab = document.querySelector(`[onclick="showTab('${tabName}')"]`);
+            if (targetNavTab) {
+                targetNavTab.classList.add('active');
+            }
+        }
+
+        // Admin login
+        document.getElementById('adminLoginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const password = document.getElementById('adminPassword').value;
+            const errorDiv = document.getElementById('loginError');
+            
+            if (password === ADMIN_PASSWORD) {
+                isAdminLoggedIn = true;
+                updateAdminInterface();
+                showTab('players');
+                document.getElementById('adminPassword').value = '';
+                errorDiv.style.display = 'none';
+            } else {
+                errorDiv.style.display = 'block';
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 3000);
+            }
+        });
+
+        // Admin logout
+        function adminLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                isAdminLoggedIn = false;
+                updateAdminInterface();
+                showTab('signup');
+            }
+        }
+
+        // Update admin interface visibility
+        function updateAdminInterface() {
+            const adminElements = ['adminTab', 'playersTab', 'leaguesTab', 'fixturesTab'];
+            const adminLoginBtn = document.getElementById('adminLoginBtn');
+            
+            if (isAdminLoggedIn) {
+                // Show admin tabs
+                adminElements.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) element.style.display = 'block';
+                });
+                // Hide admin login button
+                adminLoginBtn.style.display = 'none';
+            } else {
+                // Hide admin tabs
+                adminElements.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) element.style.display = 'none';
+                });
+                // Show admin login button
+                adminLoginBtn.style.display = 'block';
+            }
         }
 
         // Player signup
