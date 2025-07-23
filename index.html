@@ -698,12 +698,12 @@
             displayFixtures();
         }
 
-        // Generate fixtures for a league (improved round-robin algorithm)
+        // Generate fixtures for a league (reliable round-robin algorithm)
         function generateFixtures(leaguePlayers) {
             const numPlayers = leaguePlayers.length;
             const fixtures = [];
             
-            // Create a copy of players array for manipulation
+            // Create a copy of players array
             let players = [...leaguePlayers];
             
             // If odd number of players, add a "bye" placeholder
@@ -714,38 +714,43 @@
             const totalPlayers = players.length;
             const totalRounds = totalPlayers - 1;
             
-            // Generate first half of season (each player plays each other once)
+            // Create the rotation array (exclude the first player who stays fixed)
+            let rotatingPlayers = players.slice(1);
+            
+            // Generate first half of season
             for (let round = 0; round < totalRounds; round++) {
                 const roundMatches = [];
                 
-                // Generate matches for this round using proper round-robin algorithm
-                for (let i = 0; i < totalPlayers / 2; i++) {
-                    let home, away;
+                // First match: fixed player (index 0) vs last player in rotation
+                const home = players[0];
+                const away = rotatingPlayers[rotatingPlayers.length - 1];
+                
+                if (home.name !== "BYE" && away.name !== "BYE") {
+                    roundMatches.push({
+                        home: home,
+                        away: away,
+                        week: round + 1
+                    });
+                }
+                
+                // Remaining matches: pair up the rotating players
+                for (let i = 0; i < Math.floor(rotatingPlayers.length / 2); i++) {
+                    const homePlayer = rotatingPlayers[i];
+                    const awayPlayer = rotatingPlayers[rotatingPlayers.length - 2 - i];
                     
-                    if (i === 0) {
-                        // First position stays fixed
-                        home = players[0];
-                        away = players[totalPlayers - 1 - round];
-                    } else {
-                        // Calculate rotating positions
-                        const homeIndex = (round + i) % (totalPlayers - 1) + 1;
-                        const awayIndex = (round - i + totalPlayers - 1) % (totalPlayers - 1) + 1;
-                        
-                        home = players[homeIndex];
-                        away = players[awayIndex];
-                    }
-                    
-                    // Skip matches involving BYE
-                    if (home.name !== "BYE" && away.name !== "BYE") {
+                    if (homePlayer.name !== "BYE" && awayPlayer.name !== "BYE") {
                         roundMatches.push({
-                            home: home,
-                            away: away,
+                            home: homePlayer,
+                            away: awayPlayer,
                             week: round + 1
                         });
                     }
                 }
                 
                 fixtures.push(...roundMatches);
+                
+                // Rotate the players for next round (clockwise rotation)
+                rotatingPlayers = [rotatingPlayers[rotatingPlayers.length - 1], ...rotatingPlayers.slice(0, -1)];
             }
             
             // Generate second half of season (reverse home/away)
